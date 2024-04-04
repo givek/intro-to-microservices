@@ -9,21 +9,27 @@ import (
 	"time"
 
 	"github.com/givek/intro-to-microservices/handlers"
+	"github.com/gorilla/mux"
 )
 
 func main() {
 
 	logger := log.New(os.Stdout, "product-api ", log.LstdFlags)
 
-	helloHandler := handlers.NewHello(logger)
+	productsHandler := handlers.NewProducts(logger)
 
-	goodbyeHandler := handlers.NewGoodbye(logger)
+	serveMux := mux.NewRouter()
 
-	serveMux := http.NewServeMux()
+	getRouter := serveMux.Methods(http.MethodGet).Subrouter()
+	getRouter.HandleFunc("/", productsHandler.GetProducts)
 
-	serveMux.Handle("/goodbye", goodbyeHandler)
+	postRouter := serveMux.Methods(http.MethodPost).Subrouter()
+	postRouter.HandleFunc("/", productsHandler.AddProduct)
+	postRouter.Use(productsHandler.ProductValidationMiddleware)
 
-	serveMux.Handle("/", helloHandler)
+	putRouter := serveMux.Methods(http.MethodPut).Subrouter()
+	putRouter.HandleFunc("/{id:[0-9]+}", productsHandler.UpdateProduct)
+	putRouter.Use(productsHandler.ProductValidationMiddleware)
 
 	server := &http.Server{
 		Addr:         "127.0.0.1:9090",
