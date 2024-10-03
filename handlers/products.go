@@ -20,28 +20,33 @@ func NewProducts(logger *log.Logger) *Products {
 
 func (p *Products) GetProducts(rw http.ResponseWriter, _ *http.Request) {
 
-	p.logger.Println("Handle GET Products.")
+	p.logger.Println("Get Products")
 
-	productsList := data.GetProducts()
+	products := data.GetProducts()
 
-	err := productsList.ToJSON(rw)
-
-	// jsData, err := json.Marshal(productsList)
+	err := products.ToJson(rw)
 
 	if err != nil {
-		http.Error(rw, "Failed to parse JSON!", http.StatusInternalServerError)
+		http.Error(rw, "Failed to fetch products", http.StatusInternalServerError)
 		return
 	}
-
-	// rw.Write(jsData)
 
 }
 
 func (p *Products) AddProduct(rw http.ResponseWriter, r *http.Request) {
 
-	p.logger.Println("Handle POST Product.")
+	p.logger.Println("Post Product")
 
 	product := r.Context().Value(KeyProduct{}).(data.Product)
+
+	// product := &data.Product{}
+
+	// err := product.FromJson(r.Body)
+
+	// if err != nil {
+	// 	http.Error(rw, "Unable to parse the request body.", http.StatusBadRequest)
+	// 	return
+	// }
 
 	data.AddProduct(&product)
 
@@ -49,31 +54,37 @@ func (p *Products) AddProduct(rw http.ResponseWriter, r *http.Request) {
 
 func (p *Products) UpdateProduct(rw http.ResponseWriter, r *http.Request) {
 
-	p.logger.Println("Handle PUT Product.")
+	p.logger.Println("PUT Product")
 
 	vars := mux.Vars(r)
 
-	idStr := vars["id"]
-
-	id, err := strconv.Atoi(idStr)
+	id, err := strconv.Atoi(vars["id"])
 
 	if err != nil {
-
-		p.logger.Fatalf("Failed to convert id str to int. id: %v :: err: %v", idStr, err)
-
-		http.Error(rw, "Product ID not found.", http.StatusBadRequest)
+		http.Error(rw, "Invalid Id.", http.StatusBadRequest)
 		return
 	}
 
 	product := r.Context().Value(KeyProduct{}).(data.Product)
 
+	// product := &data.Product{}
+
+	// err = product.FromJson(r.Body)
+
+	// if err != nil {
+	// 	http.Error(rw, "Unable to parse the request body.", http.StatusBadRequest)
+	// 	return
+	// }
+
 	err = data.UpdateProduct(id, &product)
 
+	if err == data.ErrProductNotFound {
+		http.Error(rw, "Product Not Found", http.StatusNotFound)
+		return
+	}
+
 	if err != nil {
-
-		p.logger.Fatalf("Failed update product. id: %v :: product: %v :: err: %v", id, product, err)
-
-		http.Error(rw, "Failed to update Product", http.StatusBadRequest)
+		http.Error(rw, "Unable to update product", http.StatusInternalServerError)
 		return
 	}
 
@@ -84,26 +95,20 @@ type KeyProduct struct{}
 func (p *Products) ProductValidationMiddleware(next http.Handler) http.Handler {
 
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-
 		product := data.Product{}
 
 		err := product.FromJson(r.Body)
 
 		if err != nil {
-
-			p.logger.Fatalf("Failed to parse JSON. req body: %v :: err: %v", r.Body, err)
-
-			http.Error(rw, "Failed to parse JSON.", http.StatusBadRequest)
-
+			http.Error(rw, "Unable to parse the request body.", http.StatusBadRequest)
 			return
-
 		}
 
 		ctx := context.WithValue(r.Context(), KeyProduct{}, product)
 
-		r = r.WithContext(ctx)
+		req := r.WithContext(ctx)
 
-		next.ServeHTTP(rw, r)
+		next.ServeHTTP(rw, req)
 
 	})
 

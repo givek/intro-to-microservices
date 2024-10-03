@@ -7,9 +7,7 @@ import (
 	"net/http"
 )
 
-type Hello struct {
-	logger *log.Logger
-}
+type Hello struct{ logger *log.Logger }
 
 func NewHello(logger *log.Logger) *Hello {
 
@@ -19,15 +17,12 @@ func NewHello(logger *log.Logger) *Hello {
 
 func (h *Hello) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 
-	h.logger.Println("Hello handler called!")
-
-	data, err := io.ReadAll(r.Body) // implements the interface io.ReadCloser. So standard go libararies for reading from that stream.
+	d, err := io.ReadAll(r.Body)
 
 	if err != nil {
-		http.Error(rw, "Opps!", http.StatusBadRequest)
+		http.Error(rw, "Unknow Error!", http.StatusBadRequest)
 		return
 	}
 
-	fmt.Fprintf(rw, "Hello %s\n", data) // printing the string to the ResponseWriter.
-
+	fmt.Fprintf(rw, "Hello %s", d)
 }
