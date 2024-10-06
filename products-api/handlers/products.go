@@ -23,7 +23,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/givek/intro-to-microservices/data"
+	"github.com/givek/intro-to-microservices/products-api/data"
 	"github.com/gorilla/mux"
 )
 

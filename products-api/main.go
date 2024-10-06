@@ -8,7 +8,7 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/givek/intro-to-microservices/handlers"
+	"github.com/givek/intro-to-microservices/products-api/handlers"
 	gorillahandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 )
