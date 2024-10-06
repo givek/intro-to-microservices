@@ -1,7 +1,24 @@
+// Package classification of Product API
+//
+// Documentation for Product API
+//
+//	Schemes: http
+// 	BasePath: /
+// 	Version: 1.0.0
+//
+// 	Consumes:
+//	- application/json
+//
+// 	Produces:
+//	- application/json
+//
+// swagger:meta
+
 package handlers
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -18,6 +35,10 @@ func NewProducts(logger *log.Logger) *Products {
 	return &Products{logger: logger}
 }
 
+// swagger:route GET /products products listProducts
+// Returns a list of products
+
+// GetProducts returns the products from the data store.
 func (p *Products) GetProducts(rw http.ResponseWriter, _ *http.Request) {
 
 	p.logger.Println("Get Products")
@@ -101,6 +122,18 @@ func (p *Products) ProductValidationMiddleware(next http.Handler) http.Handler {
 
 		if err != nil {
 			http.Error(rw, "Unable to parse the request body.", http.StatusBadRequest)
+			return
+		}
+
+		err = product.Validate()
+
+		if err != nil {
+			http.Error(
+				rw,
+				fmt.Sprintf("Failed to validate request body. %s", err),
+				http.StatusBadRequest,
+			)
+
 			return
 		}
 

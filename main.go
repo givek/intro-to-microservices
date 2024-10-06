@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/givek/intro-to-microservices/handlers"
+	gorillahandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 )
 
@@ -34,9 +35,14 @@ func main() {
 	putRouter.HandleFunc("/{id:[0-9]+}", productsHandler.UpdateProduct)
 	putRouter.Use(productsHandler.ProductValidationMiddleware)
 
+	// CORS
+	corsHandler := gorillahandlers.CORS(
+		gorillahandlers.AllowedOrigins([]string{"http://localhost:5173"}),
+	)
+
 	server := &http.Server{
 		Addr:         "127.0.0.1:9000",
-		Handler:      serveMux,
+		Handler:      corsHandler(serveMux),
 		IdleTimeout:  120 * time.Second,
 		ReadTimeout:  1 * time.Second,
 		WriteTimeout: 1 * time.Second,
