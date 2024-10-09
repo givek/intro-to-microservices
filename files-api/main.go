@@ -8,18 +8,40 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/givek/intro-to-microservices/files-api/files"
+	"github.com/givek/intro-to-microservices/files-api/handlers"
 	gorillahandlers "github.com/gorilla/handlers"
+
 	"github.com/gorilla/mux"
+	"github.com/nicholasjackson/env"
 )
 
+var basePath = env.String("BASE_PATH", false, "./imagestore", "Base path to save images")
+
 func main() {
+
+	env.Parse()
 
 	logger := log.New(os.Stdout, "files-api", log.LstdFlags)
 
 	serveMux := mux.NewRouter()
 
-	postRouter := serveMux.Get(http.MethodPost).Subrouter()
-	postRouter.HandleFunc("images/{id:[0-9]+}/{filename:[a-zA-Z]+\\.[a-z]{3}}")
+	serveMux.UseEncodedPath()
+
+	store, err := files.NewLocal(*basePath, 1024*1000*5)
+
+	if err != nil {
+		logger.Fatal("Unable to create local file stoare")
+		return
+	}
+
+	fileHandler := handlers.NewFiles(store, logger)
+
+	postRouter := serveMux.Methods(http.MethodPost).Subrouter()
+	postRouter.HandleFunc("/images/{id:[0-9]+}/{filename:[a-zA-Z]+\\.[a-z]{3}}", fileHandler.ServeHTTP)
+
+	getRouter := serveMux.Methods(http.MethodGet).Subrouter()
+	getRouter.HandleFunc("/images/{id:[0-9]+}/{filename:[a-zA-Z]+\\.[a-z]{3}}", http.StripPrefix("/images/", http.FileServer(http.Dir(*basePath))).ServeHTTP)
 
 	// CORS
 	corsHandler := gorillahandlers.CORS(
