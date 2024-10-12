@@ -1,0 +1,21 @@
+
+syntax = "proto3";
+
+option go_package="github.com/givek/intro-to-microservices/currency-api";
+
+message RateRequest {
+    string Base = 1;
+    string Destination = 2;
+}
+
+message RateResponse {
+    float Rate = 1;
+}
+
+service Currency {
+
+    rpc GetRate(RateRequest) returns (RateResponse) {
+
+    }
+
+}
