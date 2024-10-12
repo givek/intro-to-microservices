@@ -35,13 +35,20 @@ func main() {
 		return
 	}
 
+	gzipMiddleware := handlers.NewGzipMiddleware()
+
 	fileHandler := handlers.NewFiles(store, logger)
 
 	postRouter := serveMux.Methods(http.MethodPost).Subrouter()
-	postRouter.HandleFunc("/images/{id:[0-9]+}/{filename:[a-zA-Z]+\\.[a-z]{3}}", fileHandler.ServeHTTP)
+	postRouter.HandleFunc("/images/{id:[0-9]+}/{filename:[a-zA-Z]+\\.[a-z]{3}}", fileHandler.UploadREST)
+	postRouter.HandleFunc("/", fileHandler.UploadMultipart)
 
 	getRouter := serveMux.Methods(http.MethodGet).Subrouter()
-	getRouter.HandleFunc("/images/{id:[0-9]+}/{filename:[a-zA-Z]+\\.[a-z]{3}}", http.StripPrefix("/images/", http.FileServer(http.Dir(*basePath))).ServeHTTP)
+	getRouter.HandleFunc(
+		"/images/{id:[0-9]+}/{filename:[a-zA-Z]+\\.[a-z]{3}}",
+		http.StripPrefix("/images/", http.FileServer(http.Dir(*basePath))).ServeHTTP,
+	)
+	getRouter.Use(gzipMiddleware.GzipMiddleware)
 
 	// CORS
 	corsHandler := gorillahandlers.CORS(
