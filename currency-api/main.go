@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 
+	"github.com/givek/intro-to-microservices/currency-api/data"
 	protos "github.com/givek/intro-to-microservices/currency-api/protos/currency/protos"
 	"github.com/givek/intro-to-microservices/currency-api/server"
 
@@ -18,7 +19,14 @@ func main() {
 
 	grpcServer := grpc.NewServer()
 
-	currencyServer := server.NewCurrency(logger)
+	exchangeRates, err := data.NewExchangeRates(logger)
+
+	if err != nil {
+		logger.Println("Failed to get exchange rates", err)
+		return
+	}
+
+	currencyServer := server.NewCurrency(logger, exchangeRates)
 
 	protos.RegisterCurrencyServer(grpcServer, currencyServer)
 

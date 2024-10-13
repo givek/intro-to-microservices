@@ -9,6 +9,7 @@ import (
 	"time"
 
 	currencyProtos "github.com/givek/intro-to-microservices/currency-api/protos/currency/protos"
+	"github.com/givek/intro-to-microservices/products-api/data"
 	"github.com/givek/intro-to-microservices/products-api/handlers"
 	gorillahandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -32,12 +33,15 @@ func main() {
 
 	currencyClient := currencyProtos.NewCurrencyClient(grpcConn)
 
-	productsHandler := handlers.NewProducts(logger, currencyClient)
+	productsDB := data.NewProductsDB(currencyClient, logger)
+
+	productsHandler := handlers.NewProducts(logger, productsDB)
 
 	serveMux := mux.NewRouter()
 
 	getRouter := serveMux.Methods(http.MethodGet).Subrouter()
 
+	getRouter.HandleFunc("/", productsHandler.GetProducts).Queries("currency", "[A-Z]{3}")
 	getRouter.HandleFunc("/", productsHandler.GetProducts)
 
 	postRouter := serveMux.Methods(http.MethodPost).Subrouter()

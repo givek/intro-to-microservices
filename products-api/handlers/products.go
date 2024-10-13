@@ -23,24 +23,23 @@ import (
 	"net/http"
 	"strconv"
 
-	currencyProtos "github.com/givek/intro-to-microservices/currency-api/protos/currency/protos"
 	"github.com/givek/intro-to-microservices/products-api/data"
 
 	"github.com/gorilla/mux"
 )
 
 type Products struct {
-	logger         *log.Logger
-	currencyClient currencyProtos.CurrencyClient
+	logger     *log.Logger
+	productsDB *data.ProductsDB
 }
 
 func NewProducts(
 	logger *log.Logger,
-	currencyClient currencyProtos.CurrencyClient,
+	productsDB *data.ProductsDB,
 ) *Products {
 	return &Products{
-		logger:         logger,
-		currencyClient: currencyClient,
+		logger:     logger,
+		productsDB: productsDB,
 	}
 }
 
@@ -48,35 +47,24 @@ func NewProducts(
 // Returns a list of products
 
 // GetProducts returns the products from the data store.
-func (p *Products) GetProducts(rw http.ResponseWriter, _ *http.Request) {
+func (p *Products) GetProducts(rw http.ResponseWriter, r *http.Request) {
 
 	p.logger.Println("Get Products")
 
-	products := data.GetProducts()
+	currency := r.URL.Query().Get("currency")
 
-	// Get the exchange rate
-	rateReq := &currencyProtos.RateRequest{
-		Base:        currencyProtos.Currencies_EUR,
-		Destination: currencyProtos.Currencies_USD,
-	}
-
-	rateRes, err := p.currencyClient.GetRate(
-		context.Background(),
-		rateReq,
-	)
+	products, err := p.productsDB.GetProducts(currency)
 
 	if err != nil {
-		http.Error(rw, "Failed to get exchnage rate.", http.StatusInternalServerError)
+		p.logger.Println("Failed to fetch products from DB", err)
+		http.Error(rw, "Failed to fetch products", http.StatusInternalServerError)
 		return
-	}
-
-	for _, p := range products {
-		p.Price = p.Price * rateRes.Rate
 	}
 
 	err = products.ToJson(rw)
 
 	if err != nil {
+		p.logger.Println("Failed to convert products to JSON", err)
 		http.Error(rw, "Failed to fetch products", http.StatusInternalServerError)
 		return
 	}

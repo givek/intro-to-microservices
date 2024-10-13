@@ -1,12 +1,15 @@
 package data
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"regexp"
 	"time"
 
+	currencyProtos "github.com/givek/intro-to-microservices/currency-api/protos/currency/protos"
 	"github.com/go-playground/validator/v10"
 )
 
@@ -47,6 +50,21 @@ func (p *Product) Validate() error {
 
 type Products []*Product
 
+type ProductsDB struct {
+	currencyClient currencyProtos.CurrencyClient
+	logger         *log.Logger
+}
+
+func NewProductsDB(
+	currencyClient currencyProtos.CurrencyClient,
+	logger *log.Logger,
+) *ProductsDB {
+	return &ProductsDB{
+		logger:         logger,
+		currencyClient: currencyClient,
+	}
+}
+
 func (p *Products) ToJson(writer io.Writer) error {
 
 	encoder := json.NewEncoder(writer)
@@ -54,8 +72,52 @@ func (p *Products) ToJson(writer io.Writer) error {
 	return encoder.Encode(p)
 }
 
-func GetProducts() Products {
-	return productList
+func (p *ProductsDB) getRate(dest string) (float32, error) {
+
+	// Get the exchange rate
+	rateReq := &currencyProtos.RateRequest{
+		Base:        currencyProtos.Currencies_EUR,
+		Destination: currencyProtos.Currencies(currencyProtos.Currencies_value[dest]),
+	}
+
+	rateRes, err := p.currencyClient.GetRate(
+		context.Background(),
+		rateReq,
+	)
+
+	if err != nil {
+		return 0, err
+	}
+
+	return rateRes.Rate, nil
+
+}
+
+func (p *ProductsDB) GetProducts(currency string) (Products, error) {
+
+	if currency == "" {
+		return productList, nil
+	}
+
+	rate, err := p.getRate(currency)
+
+	if err != nil {
+		return nil, err
+	}
+
+	productListCopy := []*Product{}
+
+	for _, p := range productList {
+
+		// creates a copy of p
+		pCopy := *p
+
+		pCopy.Price = pCopy.Price * rate
+
+		productListCopy = append(productListCopy, &pCopy)
+	}
+
+	return productListCopy, nil
 }
 
 func AddProduct(p *Product) {
@@ -84,7 +146,7 @@ func UpdateProduct(id int, p *Product) error {
 
 }
 
-var ErrProductNotFound = fmt.Errorf("Product Not Found.")
+var ErrProductNotFound = fmt.Errorf("product not found")
 
 func findProduct(id int) (*Product, int, error) {
 
