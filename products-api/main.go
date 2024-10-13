@@ -8,16 +8,31 @@ import (
 	"os/signal"
 	"time"
 
+	currencyProtos "github.com/givek/intro-to-microservices/currency-api/protos/currency/protos"
 	"github.com/givek/intro-to-microservices/products-api/handlers"
 	gorillahandlers "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
 
 	logger := log.New(os.Stdout, "product-api", log.LstdFlags)
 
-	productsHandler := handlers.NewProducts(logger)
+	grpcConn, err := grpc.NewClient(
+		"localhost:9092",
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+
+	if err != nil {
+		panic(err)
+	}
+	defer grpcConn.Close()
+
+	currencyClient := currencyProtos.NewCurrencyClient(grpcConn)
+
+	productsHandler := handlers.NewProducts(logger, currencyClient)
 
 	serveMux := mux.NewRouter()
 
