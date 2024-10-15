@@ -55,4 +55,8 @@ service Currency {
 
     }
 
+    rpc SubscribeRates(stream RateRequest) returns (stream RateResponse) {
+        
+    }
+
 }
