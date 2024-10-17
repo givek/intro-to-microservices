@@ -53,16 +53,24 @@ type Products []*Product
 type ProductsDB struct {
 	currencyClient currencyProtos.CurrencyClient
 	logger         *log.Logger
+	rates          map[string]float64
+	client         currencyProtos.Currency_SubscribeRatesClient
 }
 
 func NewProductsDB(
 	currencyClient currencyProtos.CurrencyClient,
 	logger *log.Logger,
 ) *ProductsDB {
-	return &ProductsDB{
+	productsDB := &ProductsDB{
 		logger:         logger,
 		currencyClient: currencyClient,
+		rates:          make(map[string]float64),
+		client:         nil,
 	}
+
+	go productsDB.handleUpdates()
+
+	return productsDB
 }
 
 func (p *Products) ToJson(writer io.Writer) error {
@@ -72,7 +80,35 @@ func (p *Products) ToJson(writer io.Writer) error {
 	return encoder.Encode(p)
 }
 
+func (p *ProductsDB) handleUpdates() {
+	subClient, err := p.currencyClient.SubscribeRates(context.Background())
+
+	if err != nil {
+
+		p.logger.Println("Unable subscribe for rate updates", err)
+
+	}
+
+	p.client = subClient
+
+	for {
+		rateRes, err := subClient.Recv()
+
+		p.logger.Println("Received updated rate from server", rateRes.GetDestination().String(), rateRes.Rate)
+
+		if err != nil {
+			p.logger.Println("Failed to receive rate response", err)
+		}
+
+		p.rates[rateRes.Destination.String()] = float64(rateRes.Rate)
+	}
+}
+
 func (p *ProductsDB) getRate(dest string) (float32, error) {
+
+	if r, ok := p.rates[dest]; ok {
+		return float32(r), nil
+	}
 
 	// Get the exchange rate
 	rateReq := &currencyProtos.RateRequest{
@@ -80,10 +116,16 @@ func (p *ProductsDB) getRate(dest string) (float32, error) {
 		Destination: currencyProtos.Currencies(currencyProtos.Currencies_value[dest]),
 	}
 
+	// get initial rate
 	rateRes, err := p.currencyClient.GetRate(
 		context.Background(),
 		rateReq,
 	)
+
+	p.rates[rateReq.Destination.String()] = float64(rateRes.Rate)
+
+	// subscribe for updates
+	p.client.Send(rateReq)
 
 	if err != nil {
 		return 0, err
