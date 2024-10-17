@@ -47,6 +47,9 @@ message RateRequest {
 
 message RateResponse {
     float Rate = 1;
+
+    Currencies Base = 2;
+    Currencies Destination = 3;
 }
 
 service Currency {
