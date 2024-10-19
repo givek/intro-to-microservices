@@ -92,15 +92,30 @@ func (p *ProductsDB) handleUpdates() {
 	p.client = subClient
 
 	for {
-		rateRes, err := subClient.Recv()
+		res, err := subClient.Recv()
 
-		p.logger.Println("Received updated rate from server", rateRes.GetDestination().String(), rateRes.Rate)
+		// because we used oneof is proto def
+		// it is guaranteed that either error or message is populated.
 
-		if err != nil {
-			p.logger.Println("Failed to receive rate response", err)
+		if res.GetError() != nil {
+
+			p.logger.Println("Received an error message from server", res.GetError())
+
+			// start listening for the next message.
+			continue
+
 		}
 
-		p.rates[rateRes.Destination.String()] = float64(rateRes.Rate)
+		if rateRes := res.GetRateResponse(); rateRes != nil {
+
+			p.logger.Println("Received updated rate from server", rateRes.GetDestination().String(), rateRes.Rate)
+
+			if err != nil {
+				p.logger.Println("Failed to receive rate response", err)
+			}
+
+			p.rates[rateRes.Destination.String()] = float64(rateRes.Rate)
+		}
 	}
 }
 

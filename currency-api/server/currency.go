@@ -156,6 +156,8 @@ func (c *Currency) SubscribeRates(
 
 			if v.Base == rr.Base && v.Destination == rr.Destination {
 
+				c.logger.Println("This subscription already exits.", v)
+
 				validationError = status.Newf(
 					codes.AlreadyExists,
 					"unable to subscribe for currency as subscription already exists",
@@ -168,6 +170,9 @@ func (c *Currency) SubscribeRates(
 		}
 
 		if validationError != nil {
+
+			c.logger.Println("sending validation error.", validationError)
+
 			src.Send(&protos.StreamingRateResponse{
 				Message: &protos.StreamingRateResponse_Error{
 					Error: validationError.Proto(), // convert the status to status

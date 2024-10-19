@@ -3,7 +3,7 @@ module github.com/givek/intro-to-microservices/products-api
 go 1.22.7
 
 require (
-	github.com/givek/intro-to-microservices/currency-api v0.0.0-20241017174635-296c2ae08cce
+	github.com/givek/intro-to-microservices/currency-api v0.0.0-20241019185702-05c6dc580cdc
 	github.com/go-playground/validator/v10 v10.22.1
 	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/mux v1.8.1
