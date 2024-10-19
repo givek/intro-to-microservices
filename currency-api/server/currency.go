@@ -8,7 +8,8 @@ import (
 
 	"github.com/givek/intro-to-microservices/currency-api/data"
 	protos "github.com/givek/intro-to-microservices/currency-api/protos/currency/protos"
-	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type Currency struct {
@@ -28,7 +29,7 @@ func NewCurrency(
 	c := &Currency{
 		logger:        logger,
 		exchangeRates: exchangeRates,
-		subscriptions: make(map[grpc.BidiStreamingServer[protos.RateRequest, protos.RateResponse]][]*protos.RateRequest),
+		subscriptions: make(map[protos.Currency_SubscribeRatesServer][]*protos.RateRequest),
 	}
 
 	go c.handleUpdates()
@@ -57,10 +58,14 @@ func (c *Currency) handleUpdates() {
 
 				}
 
-				err = k.Send(&protos.RateResponse{
-					Base:        rr.Base,
-					Destination: rr.Destination,
-					Rate:        float32(r),
+				err = k.Send(&protos.StreamingRateResponse{
+					Message: &protos.StreamingRateResponse_RateResponse{
+						RateResponse: &protos.RateResponse{
+							Base:        rr.Base,
+							Destination: rr.Destination,
+							Rate:        float32(r),
+						},
+					},
 				})
 
 				if err != nil {
@@ -81,6 +86,17 @@ func (c *Currency) GetRate(
 ) (*protos.RateResponse, error) {
 
 	c.logger.Println("GetRate", reqRate.GetBase(), reqRate.GetDestination())
+
+	if reqRate.Base == reqRate.Destination {
+
+		err := status.Errorf(
+			codes.InvalidArgument,
+			"Base currency cannot be the same as the Destination currency",
+		)
+
+		return nil, err
+
+	}
 
 	var f, err = c.exchangeRates.GetRate(
 		reqRate.Base.String(),
@@ -131,6 +147,34 @@ func (c *Currency) SubscribeRates(
 
 		if !ok {
 			rrc = []*protos.RateRequest{}
+		}
+
+		var validationError *status.Status
+
+		// check that subscription does not exists
+		for _, v := range rrc {
+
+			if v.Base == rr.Base && v.Destination == rr.Destination {
+
+				validationError = status.Newf(
+					codes.AlreadyExists,
+					"unable to subscribe for currency as subscription already exists",
+				)
+
+				break
+
+			}
+
+		}
+
+		if validationError != nil {
+			src.Send(&protos.StreamingRateResponse{
+				Message: &protos.StreamingRateResponse_Error{
+					Error: validationError.Proto(), // convert the status to status
+				},
+			})
+
+			continue
 		}
 
 		rrc = append(rrc, rr)

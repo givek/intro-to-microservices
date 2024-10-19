@@ -3,6 +3,8 @@ syntax = "proto3";
 
 option go_package="github.com/givek/intro-to-microservices/currency-api";
 
+import "google/rpc/status.proto";
+
 // Currencies is an enum which represents the allowed currencies for the API
 enum Currencies {
   EUR=0;
@@ -52,13 +54,25 @@ message RateResponse {
     Currencies Destination = 3;
 }
 
+message StreamingRateResponse {
+
+    oneof message {
+
+        RateResponse rate_response = 1;
+
+        google.rpc.Status error = 2;
+
+    }
+
+}
+
 service Currency {
 
     rpc GetRate(RateRequest) returns (RateResponse) {
 
     }
 
-    rpc SubscribeRates(stream RateRequest) returns (stream RateResponse) {
+    rpc SubscribeRates(stream RateRequest) returns (stream StreamingRateResponse) {
         
     }
 

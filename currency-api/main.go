@@ -11,6 +11,7 @@ import (
 	"github.com/givek/intro-to-microservices/currency-api/server"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
 func main() {
@@ -29,6 +30,10 @@ func main() {
 	currencyServer := server.NewCurrency(logger, exchangeRates)
 
 	protos.RegisterCurrencyServer(grpcServer, currencyServer)
+
+	// register the reflection service which allows clients to determine the methods
+	// for this gRPC service
+	reflection.Register(grpcServer)
 
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", 9092))
 
